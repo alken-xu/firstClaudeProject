@@ -13,9 +13,19 @@ export default function AccessPage() {
           FAX: 0000-00-0001
         </address>
 
-        <div className="h-64 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-sm mb-6">
-          地図（準備中）
+        <div className="rounded overflow-hidden mb-6 border border-gray-200" style={{ height: '360px' }}>
+          <iframe
+            title="山の湯 花結 地図"
+            src="https://www.openstreetmap.org/export/embed.html?bbox=138.3787%2C36.7188%2C138.4587%2C36.7788&layer=mapnik&marker=36.7488%2C138.4187"
+            width="100%"
+            height="100%"
+            style={{ border: 0 }}
+            loading="lazy"
+          />
         </div>
+        <p className="text-xs text-gray-400 mb-6 text-right">
+          © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline">OpenStreetMap</a> contributors
+        </p>
 
         <h3 className="font-serif text-lg text-ryokan-green mb-3">交通案内</h3>
         <ul className="text-sm text-gray-600 space-y-3">
