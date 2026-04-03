@@ -16,7 +16,7 @@ export default function AccessPage() {
         <div className="rounded overflow-hidden mb-6 border border-gray-200" style={{ height: '360px' }}>
           <iframe
             title="山の湯 花結 地図"
-            src="https://www.openstreetmap.org/export/embed.html?bbox=138.3787%2C36.7188%2C138.4587%2C36.7788&layer=mapnik&marker=36.7488%2C138.4187"
+            src="https://www.openstreetmap.org/export/embed.html?bbox=137.8%2C34.8%2C141.2%2C37.2&layer=mapnik&marker=36.7488%2C138.4187"
             width="100%"
             height="100%"
             style={{ border: 0 }}
