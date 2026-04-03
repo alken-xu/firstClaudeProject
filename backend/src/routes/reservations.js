@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db/init');
+const { sendReservationNotification } = require('../email');
 
 function generateReservationNo() {
   const now = new Date();
@@ -40,6 +41,13 @@ router.post('/', (req, res) => {
 
   const reservation = db.prepare('SELECT * FROM reservations WHERE id = ?').get(result.lastInsertRowid);
   res.status(201).json(reservation);
+
+  // メール通知（レスポンス後に非同期送信）
+  const room = db.prepare('SELECT * FROM rooms WHERE id = ?').get(room_id);
+  const plan = plan_id ? db.prepare('SELECT * FROM plans WHERE id = ?').get(plan_id) : null;
+  sendReservationNotification(reservation, room, plan)
+    .then(() => console.log(`予約メール送信完了: ${reservation.reservation_no}`))
+    .catch(err => console.error('メール送信エラー:', err.message));
 });
 
 // 予約確認（予約番号で検索）
