@@ -23,9 +23,22 @@ export default function RoomDetailPage() {
     <div className="max-w-4xl mx-auto px-4 py-12">
       <Link to="/rooms" className="text-sm text-gray-500 hover:text-ryokan-green mb-6 inline-block">← 客室一覧に戻る</Link>
 
-      <div className="h-72 bg-gray-100 rounded flex items-center justify-center text-gray-400 mb-8">
-        写真準備中
+      <div className="h-72 bg-gray-100 rounded overflow-hidden mb-8">
+        <img
+          src={room.images[0] || '/images/rooms/matsu-1.jpg'}
+          alt={room.name}
+          className="w-full h-full object-cover"
+        />
       </div>
+      {room.images.length > 1 && (
+        <div className="grid grid-cols-3 gap-2 mb-8">
+          {room.images.slice(1).map((img, i) => (
+            <div key={i} className="h-32 bg-gray-100 rounded overflow-hidden">
+              <img src={img} alt={`${room.name} ${i + 2}`} className="w-full h-full object-cover" />
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* メイン情報 */}

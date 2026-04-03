@@ -1,11 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../utils/api';
+
+const HERO_IMAGES = [
+  '/images/hero/hero-1.jpg',
+  '/images/hero/hero-2.jpg',
+  '/images/hero/hero-3.jpg',
+];
 
 export default function TopPage() {
   const [rooms, setRooms] = useState([]);
   const [plans, setPlans] = useState([]);
   const [news, setNews] = useState([]);
+  const [heroIndex, setHeroIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => setHeroIndex(i => (i + 1) % HERO_IMAGES.length), 5000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     api.getRooms().then(data => setRooms(data.slice(0, 3))).catch(() => {});
@@ -15,18 +27,35 @@ export default function TopPage() {
 
   return (
     <div>
-      {/* ヒーローセクション */}
-      <section className="relative bg-ryokan-green text-white py-32 px-4 text-center">
-        <div className="max-w-3xl mx-auto">
+      {/* ヒーロースライダー */}
+      <section className="relative h-[70vh] min-h-[480px] overflow-hidden text-white">
+        {HERO_IMAGES.map((src, i) => (
+          <div
+            key={src}
+            className="absolute inset-0 transition-opacity duration-1000"
+            style={{ opacity: i === heroIndex ? 1 : 0 }}
+          >
+            <img src={src} alt="" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-black/45" />
+          </div>
+        ))}
+        <div className="relative z-10 h-full flex flex-col items-center justify-center px-4 text-center">
           <p className="font-latin text-ryokan-gold tracking-[0.3em] text-sm mb-4">Welcome to</p>
-          <h1 className="font-serif text-4xl md:text-6xl mb-4 leading-tight">山の湯 花結</h1>
-          <p className="text-white/80 text-lg mb-8">信州の山懐に抱かれた、心やすらぐ温泉旅館</p>
+          <h1 className="font-serif text-4xl md:text-6xl mb-4 leading-tight drop-shadow-lg">山の湯 花結</h1>
+          <p className="text-white/85 text-lg mb-8">信州の山懐に抱かれた、心やすらぐ温泉旅館</p>
           <Link
             to="/reserve"
             className="inline-block bg-ryokan-gold text-white px-8 py-3 text-sm tracking-wider hover:bg-amber-600 transition-colors"
           >
             ご予約はこちら
           </Link>
+        </div>
+        {/* スライダーインジケーター */}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex gap-2">
+          {HERO_IMAGES.map((_, i) => (
+            <button key={i} onClick={() => setHeroIndex(i)}
+              className={`w-2 h-2 rounded-full transition-colors ${i === heroIndex ? 'bg-ryokan-gold' : 'bg-white/50'}`} />
+          ))}
         </div>
       </section>
 

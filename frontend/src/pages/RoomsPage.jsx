@@ -27,8 +27,12 @@ export default function RoomsPage() {
               to={`/rooms/${room.id}`}
               className="group border border-gray-200 rounded overflow-hidden hover:shadow-md transition-shadow"
             >
-              <div className="h-52 bg-gray-100 flex items-center justify-center text-gray-400 text-sm">
-                写真準備中
+              <div className="h-52 bg-gray-100 overflow-hidden">
+                <img
+                  src={room.images[0] || '/images/rooms/matsu-1.jpg'}
+                  alt={room.name}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
               </div>
               <div className="p-5">
                 <h2 className="font-serif text-xl text-ryokan-green mb-1 group-hover:text-ryokan-gold transition-colors">

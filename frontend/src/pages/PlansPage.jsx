@@ -21,8 +21,12 @@ export default function PlansPage() {
         <div className="space-y-6">
           {plans.map(plan => (
             <div key={plan.id} className="border border-gray-200 rounded overflow-hidden md:flex hover:shadow-md transition-shadow">
-              <div className="md:w-56 h-40 md:h-auto bg-gray-100 flex items-center justify-center text-gray-400 text-sm flex-shrink-0">
-                写真準備中
+              <div className="md:w-56 h-40 md:h-auto bg-gray-100 overflow-hidden flex-shrink-0">
+                <img
+                  src={plan.images[0] || '/images/plans/standard-2meals.jpg'}
+                  alt={plan.name}
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div className="p-6 flex-1">
                 <div className="flex items-start justify-between flex-wrap gap-2 mb-2">
