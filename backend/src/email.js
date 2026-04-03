@@ -67,4 +67,42 @@ function row(label, value) {
     </tr>`;
 }
 
-module.exports = { sendReservationNotification };
+async function sendContactNotification({ name, email, phone, subject, message }) {
+  const html = `
+    <div style="font-family: 'Noto Sans JP', sans-serif; max-width: 600px; margin: 0 auto; color: #2D2012;">
+      <div style="background: #2C4A3E; padding: 24px; text-align: center;">
+        <p style="color: #C9A84C; font-size: 12px; letter-spacing: 4px; margin: 0 0 4px;">NEW INQUIRY</p>
+        <h1 style="color: #fff; font-size: 22px; margin: 0;">山の湯 花結</h1>
+      </div>
+
+      <div style="padding: 32px; background: #FAF8F5;">
+        <h2 style="color: #2C4A3E; font-size: 18px; margin-bottom: 16px;">新しいお問い合わせが届きました</h2>
+
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 24px;">
+          ${row('お名前', name)}
+          ${row('メール', `<a href="mailto:${email}">${email}</a>`)}
+          ${phone ? row('電話番号', phone) : ''}
+          ${subject ? row('件名', subject) : ''}
+        </table>
+
+        <div style="background: #fff; border-left: 3px solid #2C4A3E; padding: 16px; font-size: 14px; line-height: 1.8; white-space: pre-wrap;">
+          ${message.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+        </div>
+
+        <p style="font-size: 11px; color: #aaa; margin-top: 32px; text-align: center;">
+          ※ このメールはデモサイト「山の湯 花結」のお問い合わせフォームから自動送信されました。
+        </p>
+      </div>
+    </div>
+  `;
+
+  await transporter.sendMail({
+    from: `"山の湯 花結 お問い合わせ" <${process.env.SMTP_USER}>`,
+    replyTo: email,
+    to: process.env.NOTIFY_TO,
+    subject: `【お問い合わせ】${subject || 'お問い合わせ'} ／ ${name} 様`,
+    html,
+  });
+}
+
+module.exports = { sendReservationNotification, sendContactNotification };
