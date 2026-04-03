@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { format, differenceInCalendarDays } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
+import { differenceInCalendarDays } from 'date-fns';
 import { api } from '../utils/api';
 
-const STEPS = ['日程・人数', '客室・プラン選択', 'お客様情報'];
+const STEPS = ['日程・人数', '客室・プラン', 'お客様情報', '予約確認'];
+
+// 日本の電話番号バリデーション
+// 対応: 携帯(070/080/090), IP電話(050), 固定電話, フリーダイヤル(0120/0800)
+const JP_PHONE_REGEX = /^(0[7-9]0-\d{4}-\d{4}|050-\d{4}-\d{4}|0120-\d{3}-\d{3}|0800-\d{3}-\d{4}|0\d{1,3}-\d{1,4}-\d{4})$/;
+const JP_PHONE_MESSAGE = '有効な電話番号を入力してください（例: 090-1234-5678 / 03-1234-5678 / 0120-123-456）';
 
 export default function ReservePage() {
   const [step, setStep] = useState(1);
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
   // Step1 state
@@ -21,8 +25,16 @@ export default function ReservePage() {
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState(null);
 
+  // Step3 guest info (保存してStep4確認に使う)
+  const [guestInfo, setGuestInfo] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+
   const { register: reg1, handleSubmit: hs1, formState: { errors: e1 } } = useForm();
   const { register: reg3, handleSubmit: hs3, formState: { errors: e3 } } = useForm();
+
+  const totalPrice = selectedRoom
+    ? (selectedRoom.base_price + (selectedPlan?.price_modifier || 0)) * parseInt(searchInfo?.guest_count || 1) * (searchInfo?.nights || 1)
+    : 0;
 
   // Step1: 空室検索
   async function onSearchSubmit(data) {
@@ -45,38 +57,34 @@ export default function ReservePage() {
     }
   }
 
-  // Step2 → Step3
-  function onSelectSubmit() {
-    if (!selectedRoom) return;
-    setStep(3);
+  // Step3: お客様情報入力 → Step4確認へ
+  function onGuestSubmit(data) {
+    setGuestInfo(data);
+    setStep(4);
   }
 
-  // Step3: 予約確定 → 確認画面
-  async function onGuestSubmit(data) {
-    const nights = searchInfo.nights;
-    const basePrice = selectedRoom.base_price;
-    const planModifier = selectedPlan?.price_modifier || 0;
-    const total = (basePrice + planModifier) * parseInt(searchInfo.guest_count) * nights;
-
+  // Step4: 予約確定（API呼び出し）
+  async function onConfirm() {
+    setSubmitting(true);
     const payload = {
       room_id: selectedRoom.id,
       plan_id: selectedPlan?.id || null,
       check_in: searchInfo.check_in,
       check_out: searchInfo.check_out,
-      nights,
+      nights: searchInfo.nights,
       guest_count: parseInt(searchInfo.guest_count),
-      total_price: total,
-      guest_name: data.guest_name,
-      guest_email: data.guest_email,
-      guest_phone: data.guest_phone,
-      requests: data.requests,
+      total_price: totalPrice,
+      guest_name: guestInfo.guest_name,
+      guest_email: guestInfo.guest_email,
+      guest_phone: guestInfo.guest_phone,
+      requests: guestInfo.requests,
     };
-
     try {
       const reservation = await api.createReservation(payload);
       navigate('/reserve/complete', { state: { reservation, room: selectedRoom, plan: selectedPlan } });
     } catch (err) {
       alert('予約に失敗しました: ' + err.message);
+      setSubmitting(false);
     }
   }
 
@@ -86,21 +94,27 @@ export default function ReservePage() {
       <p className="text-center text-sm text-gray-500 mb-10">Reservation</p>
 
       {/* ステップ表示 */}
-      <div className="flex items-center justify-center mb-10 gap-0">
+      <div className="flex items-center justify-center mb-10">
         {STEPS.map((label, i) => (
           <div key={i} className="flex items-center">
-            <div className={`flex flex-col items-center`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step === i + 1 ? 'bg-ryokan-green text-white' : step > i + 1 ? 'bg-ryokan-gold text-white' : 'bg-gray-200 text-gray-500'}`}>
+            <div className="flex flex-col items-center">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                step === i + 1 ? 'bg-ryokan-green text-white'
+                : step > i + 1 ? 'bg-ryokan-gold text-white'
+                : 'bg-gray-200 text-gray-500'
+              }`}>
                 {step > i + 1 ? '✓' : i + 1}
               </div>
               <span className="text-xs mt-1 text-gray-500 whitespace-nowrap">{label}</span>
             </div>
-            {i < STEPS.length - 1 && <div className={`w-16 h-0.5 mx-2 mb-5 ${step > i + 1 ? 'bg-ryokan-gold' : 'bg-gray-200'}`} />}
+            {i < STEPS.length - 1 && (
+              <div className={`w-12 h-0.5 mx-1 mb-5 ${step > i + 1 ? 'bg-ryokan-gold' : 'bg-gray-200'}`} />
+            )}
           </div>
         ))}
       </div>
 
-      {/* Step 1 */}
+      {/* Step 1: 日程・人数 */}
       {step === 1 && (
         <div className="bg-white border border-gray-200 rounded p-6">
           <h2 className="font-serif text-xl text-ryokan-green mb-6">日程・人数を入力してください</h2>
@@ -149,9 +163,7 @@ export default function ReservePage() {
                           <p className="font-serif text-base text-ryokan-green">{room.name}</p>
                           <p className="text-xs text-gray-500">{room.type} ／ 最大{room.capacity}名</p>
                         </div>
-                        <p className="text-ryokan-red font-medium text-sm">
-                          ¥{room.base_price.toLocaleString()}/名〜
-                        </p>
+                        <p className="text-ryokan-red font-medium text-sm">¥{room.base_price.toLocaleString()}/名〜</p>
                       </div>
                     </button>
                   ))}
@@ -162,31 +174,25 @@ export default function ReservePage() {
         </div>
       )}
 
-      {/* Step 2 */}
+      {/* Step 2: 客室・プラン */}
       {step === 2 && selectedRoom && (
         <div className="bg-white border border-gray-200 rounded p-6">
           <h2 className="font-serif text-xl text-ryokan-green mb-6">客室・プランを選択してください</h2>
-
           <div className="bg-ryokan-bg border border-gray-100 rounded p-4 mb-6">
             <p className="text-sm font-medium text-ryokan-green">{selectedRoom.name}</p>
             <p className="text-xs text-gray-500">{selectedRoom.type} ／ 最大{selectedRoom.capacity}名</p>
             <p className="text-xs text-ryokan-red mt-1">¥{selectedRoom.base_price.toLocaleString()}/名（基本料金）</p>
           </div>
-
           <h3 className="font-serif text-base text-ryokan-green mb-3">プランを選択</h3>
           <div className="space-y-2 mb-6">
-            <button
-              onClick={() => setSelectedPlan(null)}
-              className={`w-full text-left border rounded p-3 text-sm transition-colors ${!selectedPlan ? 'border-ryokan-green bg-ryokan-green/5' : 'border-gray-200 hover:border-gray-300'}`}
-            >
+            <button onClick={() => setSelectedPlan(null)}
+              className={`w-full text-left border rounded p-3 text-sm transition-colors ${!selectedPlan ? 'border-ryokan-green bg-ryokan-green/5' : 'border-gray-200 hover:border-gray-300'}`}>
               <span className="font-medium">プランなし</span>
               <span className="text-gray-400 ml-2 text-xs">基本料金のみ</span>
             </button>
             {plans.map(plan => (
-              <button key={plan.id}
-                onClick={() => setSelectedPlan(plan)}
-                className={`w-full text-left border rounded p-3 text-sm transition-colors ${selectedPlan?.id === plan.id ? 'border-ryokan-green bg-ryokan-green/5' : 'border-gray-200 hover:border-gray-300'}`}
-              >
+              <button key={plan.id} onClick={() => setSelectedPlan(plan)}
+                className={`w-full text-left border rounded p-3 text-sm transition-colors ${selectedPlan?.id === plan.id ? 'border-ryokan-green bg-ryokan-green/5' : 'border-gray-200 hover:border-gray-300'}`}>
                 <div className="flex justify-between">
                   <span className="font-medium">{plan.name}</span>
                   <span className="text-ryokan-red text-xs">
@@ -197,34 +203,26 @@ export default function ReservePage() {
               </button>
             ))}
           </div>
-
           <div className="flex gap-3">
-            <button onClick={() => setStep(1)} className="flex-1 border border-gray-300 text-gray-600 py-3 text-sm rounded hover:bg-gray-50 transition-colors">
-              戻る
-            </button>
-            <button onClick={onSelectSubmit} className="flex-1 bg-ryokan-green text-white py-3 text-sm rounded hover:bg-ryokan-green/90 transition-colors">
-              次へ進む
-            </button>
+            <button onClick={() => setStep(1)} className="flex-1 border border-gray-300 text-gray-600 py-3 text-sm rounded hover:bg-gray-50 transition-colors">戻る</button>
+            <button onClick={() => setStep(3)} className="flex-1 bg-ryokan-green text-white py-3 text-sm rounded hover:bg-ryokan-green/90 transition-colors">次へ進む</button>
           </div>
         </div>
       )}
 
-      {/* Step 3 */}
+      {/* Step 3: お客様情報 */}
       {step === 3 && (
         <div className="bg-white border border-gray-200 rounded p-6">
           <h2 className="font-serif text-xl text-ryokan-green mb-6">お客様情報を入力してください</h2>
 
-          {/* 予約サマリ */}
-          <div className="bg-ryokan-bg border border-gray-100 rounded p-4 mb-6 text-sm">
-            <div className="grid grid-cols-2 gap-1 text-xs text-gray-600">
+          <div className="bg-ryokan-bg border border-gray-100 rounded p-4 mb-6 text-xs text-gray-600">
+            <div className="grid grid-cols-2 gap-y-1">
               <span>客室</span><span className="font-medium">{selectedRoom?.name}</span>
               <span>プラン</span><span className="font-medium">{selectedPlan?.name || 'プランなし'}</span>
               <span>日程</span><span className="font-medium">{searchInfo?.check_in} → {searchInfo?.check_out}（{searchInfo?.nights}泊）</span>
               <span>人数</span><span className="font-medium">{searchInfo?.guest_count}名</span>
-              <span className="font-medium text-ryokan-red">合計（概算）</span>
-              <span className="font-medium text-ryokan-red">
-                ¥{((selectedRoom.base_price + (selectedPlan?.price_modifier || 0)) * parseInt(searchInfo.guest_count) * searchInfo.nights).toLocaleString()}
-              </span>
+              <span className="text-ryokan-red font-medium">合計（概算）</span>
+              <span className="text-ryokan-red font-medium">¥{totalPrice.toLocaleString()}</span>
             </div>
           </div>
 
@@ -232,6 +230,7 @@ export default function ReservePage() {
             <div>
               <label className="block text-sm text-gray-600 mb-1">お名前 <span className="text-red-500">*</span></label>
               <input {...reg3('guest_name', { required: '入力してください' })}
+                defaultValue={guestInfo?.guest_name}
                 placeholder="山田 花子"
                 className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-ryokan-green" />
               {e3.guest_name && <p className="text-xs text-red-500 mt-1">{e3.guest_name.message}</p>}
@@ -239,37 +238,105 @@ export default function ReservePage() {
             <div>
               <label className="block text-sm text-gray-600 mb-1">メールアドレス <span className="text-red-500">*</span></label>
               <input type="email" {...reg3('guest_email', { required: '入力してください' })}
+                defaultValue={guestInfo?.guest_email}
                 placeholder="example@email.com"
                 className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-ryokan-green" />
               {e3.guest_email && <p className="text-xs text-red-500 mt-1">{e3.guest_email.message}</p>}
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">電話番号 <span className="text-red-500">*</span></label>
-              <input type="tel" {...reg3('guest_phone', { required: '入力してください' })}
+              <label className="block text-sm text-gray-600 mb-1">
+                電話番号 <span className="text-red-500">*</span>
+                <span className="text-xs text-gray-400 ml-2 font-normal">ハイフンあり（例: 090-1234-5678）</span>
+              </label>
+              <input type="tel" {...reg3('guest_phone', {
+                required: '入力してください',
+                pattern: { value: JP_PHONE_REGEX, message: JP_PHONE_MESSAGE },
+              })}
+                defaultValue={guestInfo?.guest_phone}
                 placeholder="090-0000-0000"
                 className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-ryokan-green" />
               {e3.guest_phone && <p className="text-xs text-red-500 mt-1">{e3.guest_phone.message}</p>}
+              <p className="text-xs text-gray-400 mt-1">携帯: 090/080/070 ／ 固定: 03-XXXX-XXXX など ／ IP電話: 050 ／ フリーダイヤル: 0120/0800</p>
             </div>
             <div>
               <label className="block text-sm text-gray-600 mb-1">特別リクエスト（任意）</label>
               <textarea {...reg3('requests')} rows={3}
+                defaultValue={guestInfo?.requests}
                 placeholder="アレルギー、アーリーチェックインのご希望など"
                 className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-ryokan-green resize-none" />
             </div>
-
             <div className="flex gap-3">
               <button type="button" onClick={() => setStep(2)}
-                className="flex-1 border border-gray-300 text-gray-600 py-3 text-sm rounded hover:bg-gray-50 transition-colors">
-                戻る
-              </button>
+                className="flex-1 border border-gray-300 text-gray-600 py-3 text-sm rounded hover:bg-gray-50 transition-colors">戻る</button>
               <button type="submit"
-                className="flex-1 bg-ryokan-gold text-white py-3 text-sm rounded hover:bg-amber-600 transition-colors">
-                予約を確定する
+                className="flex-1 bg-ryokan-green text-white py-3 text-sm rounded hover:bg-ryokan-green/90 transition-colors">
+                確認画面へ進む
               </button>
             </div>
           </form>
         </div>
       )}
+
+      {/* Step 4: 予約確認 */}
+      {step === 4 && guestInfo && (
+        <div className="bg-white border border-gray-200 rounded p-6">
+          <h2 className="font-serif text-xl text-ryokan-green mb-2">予約内容をご確認ください</h2>
+          <p className="text-sm text-gray-500 mb-6">以下の内容でよろしければ「予約を確定する」ボタンを押してください。</p>
+
+          <div className="divide-y divide-gray-100 text-sm mb-8">
+            <Section title="宿泊情報">
+              <Row label="客室" value={selectedRoom?.name} />
+              <Row label="プラン" value={selectedPlan?.name || 'プランなし'} />
+              <Row label="食事" value={selectedPlan?.meal_type || '—'} />
+              <Row label="チェックイン" value={searchInfo?.check_in} />
+              <Row label="チェックアウト" value={searchInfo?.check_out} />
+              <Row label="泊数" value={`${searchInfo?.nights}泊`} />
+              <Row label="人数" value={`${searchInfo?.guest_count}名`} />
+              <Row label="合計金額（概算）" value={`¥${totalPrice.toLocaleString()}`} highlight />
+            </Section>
+            <Section title="お客様情報">
+              <Row label="お名前" value={guestInfo.guest_name} />
+              <Row label="メールアドレス" value={guestInfo.guest_email} />
+              <Row label="電話番号" value={guestInfo.guest_phone} />
+              {guestInfo.requests && <Row label="特別リクエスト" value={guestInfo.requests} />}
+            </Section>
+          </div>
+
+          <p className="text-xs text-gray-400 mb-6">
+            ※ 合計金額は概算です。実際の金額は旅館よりご案内いたします。<br />
+            ※ 予約確定後、確認メールが旅館に送信されます。
+          </p>
+
+          <div className="flex gap-3">
+            <button onClick={() => setStep(3)}
+              className="flex-1 border border-gray-300 text-gray-600 py-3 text-sm rounded hover:bg-gray-50 transition-colors">
+              修正する
+            </button>
+            <button onClick={onConfirm} disabled={submitting}
+              className="flex-1 bg-ryokan-gold text-white py-3 text-sm rounded hover:bg-amber-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+              {submitting ? '送信中...' : '予約を確定する'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Section({ title, children }) {
+  return (
+    <div className="py-4">
+      <p className="text-xs font-medium text-ryokan-green uppercase tracking-wider mb-3">{title}</p>
+      <div className="space-y-2">{children}</div>
+    </div>
+  );
+}
+
+function Row({ label, value, highlight }) {
+  return (
+    <div className="flex gap-4">
+      <span className="text-gray-500 w-36 flex-shrink-0">{label}</span>
+      <span className={`font-medium ${highlight ? 'text-ryokan-red' : 'text-ryokan-text'}`}>{value}</span>
     </div>
   );
 }
