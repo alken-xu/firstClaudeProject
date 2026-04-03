@@ -1,7 +1,7 @@
 # 要件定義書 - デモ用旅館予約サイト
 
 **作成日**: 2026-04-03  
-**バージョン**: 1.0  
+**バージョン**: 1.1（技術スタック確定）  
 **参考サイト**: https://hatagoya-maruichi.com/（旅籠屋丸一）
 
 ---
@@ -9,7 +9,7 @@
 ## 1. プロジェクト概要
 
 ### 1.1 目的
-デモ用の日本旅館予約サイトを構築する。実際の宿泊予約フローを体験できるフロントエンドデモとして機能する。
+デモ用の日本旅館予約サイトを構築する。実際の宿泊予約フローを体験できるフルスタックデモとして機能する。
 
 ### 1.2 想定旅館設定
 - **旅館名**: 山の湯 花結（やまのゆ はなゆい）※デモ用架空旅館
@@ -67,58 +67,59 @@
 
 ## 4. データモデル
 
-### 4.1 客室 (Room)
+### 4.1 客室 (rooms テーブル)
 ```
-- id: string
-- name: string           // 例：「松の間」「竹の間」
-- type: string           // 和室 / 洋室 / 和洋室
-- capacity: number       // 最大宿泊人数
-- size: number           // 部屋の広さ（㎡）
-- basePrice: number      // 1泊基本料金（1名あたり）
-- description: string    // 客室説明
-- amenities: string[]    // 設備リスト（温泉露天風呂付き、etc.）
-- images: string[]       // 画像URLリスト
-- isAvailable: boolean   // 公開フラグ
-```
-
-### 4.2 プラン (Plan)
-```
-- id: string
-- name: string           // 例：「スタンダード夕食付きプラン」
-- description: string
-- mealType: string       // 朝食のみ / 夕食付き / 2食付き / 素泊まり
-- priceModifier: number  // 基本料金への加算額
-- minNights: number      // 最低宿泊泊数
-- availableFrom: date    // 販売開始日
-- availableTo: date      // 販売終了日
-- images: string[]
+- id          INTEGER PRIMARY KEY AUTOINCREMENT
+- name        TEXT NOT NULL        -- 例：「松の間」「竹の間」
+- type        TEXT NOT NULL        -- 和室 / 洋室 / 和洋室
+- capacity    INTEGER NOT NULL     -- 最大宿泊人数
+- size        REAL                 -- 部屋の広さ（㎡）
+- base_price  INTEGER NOT NULL     -- 1泊基本料金（1名あたり・円）
+- description TEXT
+- amenities   TEXT                 -- JSON配列で保存
+- images      TEXT                 -- JSON配列で保存（画像URLリスト）
+- is_available INTEGER DEFAULT 1  -- 公開フラグ（0/1）
 ```
 
-### 4.3 予約 (Reservation)
+### 4.2 プラン (plans テーブル)
 ```
-- id: string             // 予約番号
-- roomId: string
-- planId: string
-- checkIn: date
-- checkOut: date
-- nights: number
-- guestCount: number
-- totalPrice: number
-- guestName: string
-- guestEmail: string
-- guestPhone: string
-- requests: string       // 特別リクエスト
-- createdAt: datetime
-- status: string         // confirmed / cancelled
+- id               INTEGER PRIMARY KEY AUTOINCREMENT
+- name             TEXT NOT NULL    -- 例：「スタンダード夕食付きプラン」
+- description      TEXT
+- meal_type        TEXT             -- 朝食のみ / 夕食付き / 2食付き / 素泊まり
+- price_modifier   INTEGER DEFAULT 0 -- 基本料金への加算額（円）
+- min_nights       INTEGER DEFAULT 1
+- available_from   TEXT             -- 販売開始日（YYYY-MM-DD）
+- available_to     TEXT             -- 販売終了日（YYYY-MM-DD）
+- images           TEXT             -- JSON配列で保存
 ```
 
-### 4.4 お知らせ (News)
+### 4.3 予約 (reservations テーブル)
 ```
-- id: string
-- title: string
-- content: string
-- publishedAt: date
-- category: string       // お知らせ / イベント / 季節情報
+- id            INTEGER PRIMARY KEY AUTOINCREMENT
+- reservation_no TEXT UNIQUE NOT NULL  -- 予約番号（例：YK-20260403-0001）
+- room_id       INTEGER REFERENCES rooms(id)
+- plan_id       INTEGER REFERENCES plans(id)
+- check_in      TEXT NOT NULL          -- YYYY-MM-DD
+- check_out     TEXT NOT NULL          -- YYYY-MM-DD
+- nights        INTEGER NOT NULL
+- guest_count   INTEGER NOT NULL
+- total_price   INTEGER NOT NULL
+- guest_name    TEXT NOT NULL
+- guest_email   TEXT NOT NULL
+- guest_phone   TEXT NOT NULL
+- requests      TEXT                   -- 特別リクエスト
+- created_at    TEXT DEFAULT (datetime('now'))
+- status        TEXT DEFAULT 'confirmed'  -- confirmed / cancelled
+```
+
+### 4.4 お知らせ (news テーブル)
+```
+- id           INTEGER PRIMARY KEY AUTOINCREMENT
+- title        TEXT NOT NULL
+- content      TEXT NOT NULL
+- published_at TEXT NOT NULL   -- YYYY-MM-DD
+- category     TEXT            -- お知らせ / イベント / 季節情報
 ```
 
 ---
@@ -148,27 +149,80 @@
 
 ---
 
-## 6. 技術スタック
+## 6. 技術スタック（確定）
 
-### 6.1 採用技術（推奨）
+### 6.1 全体アーキテクチャ
 
-| レイヤー | 技術 | 理由 |
-|---|---|---|
-| フレームワーク | Next.js 14（App Router） | SSR/SSG対応・SEO・開発効率 |
-| スタイリング | Tailwind CSS | 高速なUI構築・カスタマイズ性 |
-| UIコンポーネント | shadcn/ui | 高品質なコンポーネント群 |
-| 状態管理 | Zustand | 予約フォームの状態管理 |
-| 日付操作 | date-fns | 日付計算・フォーマット |
-| フォーム | React Hook Form + Zod | バリデーション付きフォーム |
-| データ | JSON（静的ファイル） | デモ用途・DB不要 |
-| 画像 | Next.js Image + Unsplash | 最適化済み画像 |
+```
+┌─────────────────────┐     HTTP/REST API     ┌──────────────────────┐
+│  フロントエンド      │ ◄──────────────────► │  バックエンド         │
+│  React + Vite       │                       │  Express + Node.js   │
+│  (port: 5173)       │                       │  (port: 3001)        │
+└─────────────────────┘                       └──────────┬───────────┘
+                                                         │
+                                                         ▼
+                                                ┌──────────────────┐
+                                                │  SQLite          │
+                                                │  (ローカルファイル) │
+                                                └──────────────────┘
+```
 
-### 6.2 代替技術スタック（シンプル構成）
-- React + Vite + Tailwind CSS（Next.js不要のSPA版）
+### 6.2 採用技術一覧
+
+| レイヤー | 技術 | バージョン | 理由 |
+|---|---|---|---|
+| フロントエンド | React | 18.x | コンポーネント指向UI |
+| ビルドツール | Vite | 5.x | 高速なHMR・シンプルな設定 |
+| スタイリング | Tailwind CSS | 3.x | ユーティリティ・高速UI構築 |
+| ルーティング | React Router | v6 | SPA画面遷移 |
+| フォーム | React Hook Form | 7.x | バリデーション付きフォーム |
+| 日付操作 | date-fns | 3.x | 日付計算・フォーマット |
+| バックエンド | Express | 4.x | Node.js Webフレームワーク |
+| DB | SQLite | - | ローカルファイルDB・設定不要 |
+| DBドライバー | better-sqlite3 | - | 同期API・高速・シンプル |
+
+### 6.3 フォルダ構成（予定）
+
+```
+firstClaudeProject/
+├── requirements.md
+├── frontend/               # React + Vite
+│   ├── src/
+│   │   ├── components/     # 共通コンポーネント
+│   │   ├── pages/          # 各ページコンポーネント
+│   │   ├── hooks/          # カスタムフック
+│   │   └── utils/          # ユーティリティ関数
+│   ├── index.html
+│   ├── vite.config.js
+│   └── package.json
+└── backend/                # Express + SQLite
+    ├── src/
+    │   ├── routes/         # APIルート定義
+    │   ├── db/             # DB初期化・クエリ
+    │   └── index.js        # エントリポイント
+    ├── database.sqlite     # SQLiteファイル
+    └── package.json
+```
 
 ---
 
-## 7. デモ用に省略する機能
+## 7. API設計（主要エンドポイント）
+
+| メソッド | エンドポイント | 説明 |
+|---|---|---|
+| GET | `/api/rooms` | 客室一覧取得 |
+| GET | `/api/rooms/:id` | 客室詳細取得 |
+| GET | `/api/rooms/availability` | 空室検索 |
+| GET | `/api/plans` | プラン一覧取得 |
+| GET | `/api/plans/:id` | プラン詳細取得 |
+| POST | `/api/reservations` | 予約作成 |
+| GET | `/api/reservations/:no` | 予約確認 |
+| GET | `/api/news` | お知らせ一覧取得 |
+| POST | `/api/contact` | お問い合わせ送信 |
+
+---
+
+## 8. デモ用に省略する機能
 
 | 機能 | 理由 |
 |---|---|
@@ -177,13 +231,12 @@
 | メール送信（実送信） | 画面表示のみで代替 |
 | 管理画面 | 将来拡張として扱う |
 | 多言語対応 | 日本語のみ |
-| リアルタイム空室同期 | 静的データで代替 |
 
 ---
 
-## 8. ページ別コンテンツ詳細
+## 9. ページ別コンテンツ詳細
 
-### 8.1 トップページ
+### 9.1 トップページ
 - ヒーロースライダー（旅館の雰囲気写真 3〜5枚）
 - キャッチコピー・旅館コンセプト文
 - 「ご予約」への導線ボタン
@@ -191,37 +244,29 @@
 - 季節のプランピックアップ
 - 温泉・食事・施設のハイライトセクション
 - お知らせ（最新3件）
-- アクセス概要 + Google Maps埋め込み（デモはダミー）
+- アクセス概要
 - フッター（ナビ・連絡先・SNSリンク）
 
-### 8.2 予約フォーム（3ステップ）
+### 9.2 予約フォーム（3ステップ）
 - **Step 1**: チェックイン日・チェックアウト日・人数入力 → 空室検索
 - **Step 2**: 空室客室一覧からの選択・プラン選択・料金確認
 - **Step 3**: 氏名・電話番号・メールアドレス・特別リクエスト入力
 - **確認画面**: 全入力内容の表示・修正リンク
-- **完了画面**: 予約番号・予約内容サマリ・「メールを確認してください」メッセージ
+- **完了画面**: 予約番号・予約内容サマリ
 
 ---
 
-## 9. 開発優先順位
+## 10. 開発優先順位
 
 | 優先度 | タスク |
 |---|---|
-| 高 | プロジェクト初期構築・共通レイアウト |
+| 高 | プロジェクト初期構築（frontend/backend分離構成） |
+| 高 | DB初期化・シードデータ投入 |
+| 高 | 共通レイアウト（ヘッダー・フッター） |
 | 高 | トップページ実装 |
 | 高 | 客室一覧・客室詳細ページ |
-| 高 | 予約フォーム（3ステップ）|
+| 高 | 予約フォーム（3ステップ） |
 | 中 | プラン一覧ページ |
 | 中 | 施設案内・アクセスページ |
 | 低 | お知らせ一覧 |
 | 低 | お問い合わせフォーム |
-
----
-
-## 10. 今後の確認事項
-
-- [ ] 技術スタックの最終確認（Next.js vs React+Vite）
-- [ ] デザインカラーパレットの承認
-- [ ] デモ用画像の調達方針（Unsplash利用可否）
-- [ ] 架空旅館名・設定の確認
-- [ ] 開発環境の確認（Node.jsバージョン等）
