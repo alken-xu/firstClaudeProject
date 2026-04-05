@@ -1,7 +1,7 @@
 # 要件定義書 - デモ用旅館予約サイト
 
 **作成日**: 2026-04-03  
-**バージョン**: 1.1（技術スタック確定）  
+**バージョン**: 1.2（実装状況反映）  
 **参考サイト**: https://hatagoya-maruichi.com/（旅籠屋丸一）
 
 ---
@@ -14,26 +14,27 @@
 ### 1.2 想定旅館設定
 - **旅館名**: 山の湯 花結（やまのゆ はなゆい）※デモ用架空旅館
 - **コンセプト**: 和の情緒を大切にした温泉旅館
-- **所在地**: 架空の温泉地（例：信州・山ノ湯温泉）
-- **規模**: 客室10室程度（デモ用）
+- **所在地**: 架空の温泉地（信州・山ノ湯温泉）
+- **規模**: 客室6室（実装済みシードデータ）
 
 ---
 
 ## 2. ページ構成
 
-| ページ名 | URL | 説明 |
+| ページ名 | URL | 実装状況 |
 |---|---|---|
-| トップページ | `/` | メインビジュアル、旅館紹介、おすすめプラン |
-| 客室一覧 | `/rooms` | 全客室の一覧表示 |
-| 客室詳細 | `/rooms/:id` | 各客室の詳細・写真・設備 |
-| プラン一覧 | `/plans` | 宿泊プラン一覧 |
-| 予約フォーム | `/reserve` | チェックイン日・人数・客室選択・個人情報入力 |
-| 予約確認 | `/reserve/confirm` | 入力内容の確認画面 |
-| 予約完了 | `/reserve/complete` | 予約完了メッセージ |
-| 温泉・施設案内 | `/facilities` | 温泉・食事・館内施設の紹介 |
-| アクセス | `/access` | 地図・交通案内 |
-| お知らせ | `/news` | 最新情報・イベント情報 |
-| お問い合わせ | `/contact` | 問い合わせフォーム |
+| トップページ | `/` | ✅ 実装済み |
+| 客室一覧 | `/rooms` | ✅ 実装済み |
+| 客室詳細 | `/rooms/:id` | ✅ 実装済み |
+| プラン一覧 | `/plans` | ✅ 実装済み |
+| 予約フォーム（4ステップ統合） | `/reserve` | ✅ 実装済み |
+| 予約完了 | `/reserve/complete` | ✅ 実装済み |
+| 温泉・施設案内 | `/facilities` | ✅ 実装済み |
+| アクセス | `/access` | ✅ 実装済み |
+| お知らせ | `/news` | ✅ 実装済み |
+| お問い合わせ | `/contact` | ✅ 実装済み |
+
+> **設計変更**: 当初の `/reserve/confirm`（別URL）は廃止。予約確認はStep 4として `/reserve` 内に統合。
 
 ---
 
@@ -42,84 +43,107 @@
 ### 3.1 ユーザー向け機能
 
 #### 検索・閲覧
-- [ ] チェックイン日・チェックアウト日・人数による空室検索
-- [ ] 客室一覧の表示（写真・料金・設備のサマリ）
-- [ ] 客室詳細ページ（複数写真・設備リスト・料金表）
-- [ ] プラン一覧・プラン詳細の表示
+- [x] チェックイン日・チェックアウト日・人数による空室検索
+- [x] 客室一覧の表示（Unsplash画像・料金・設備のサマリ）
+- [x] 客室詳細ページ（複数写真・設備リスト・料金表）
+- [x] プラン一覧・プラン詳細の表示
 
 #### 予約フロー
-- [ ] 空室カレンダー表示（日付別の空室状況）
-- [ ] 予約フォーム入力（宿泊日・人数・客室・プラン・氏名・連絡先）
-- [ ] 入力内容の確認画面
-- [ ] 予約完了画面（予約番号の発行）
-- [ ] 予約確認メール送信（デモのため画面表示のみ）
+- [x] 予約フォーム入力（4ステップ：日程/客室/個人情報/確認）
+- [x] 二重予約チェック（同一客室・期間の重複検出）
+- [x] 日本の電話番号バリデーション（携帯・固定・IP電話・フリーダイヤル対応）
+- [x] 予約完了画面（予約番号の発行・予約内容サマリ）
+- [x] 予約作成時のメール通知（nodemailer / Gmail SMTP）
 
 #### その他
-- [ ] お問い合わせフォーム
-- [ ] レスポンシブ対応（スマートフォン・タブレット・PC）
+- [x] お問い合わせフォーム（メール通知付き）
+- [x] アクセスページ（OpenStreetMap埋め込み）
+- [x] レスポンシブ対応（SP/Tablet/PC）
 
-### 3.2 管理者向け機能（デモスコープ外・将来拡張）
+### 3.2 管理者向け機能（スコープ外・将来拡張）
 - 予約一覧の確認
 - 客室・プランの登録・編集
-- カレンダー管理
 
 ---
 
 ## 4. データモデル
 
 ### 4.1 客室 (rooms テーブル)
+```sql
+id           INTEGER PRIMARY KEY AUTOINCREMENT
+name         TEXT NOT NULL        -- 例：「松の間」「竹の間」
+type         TEXT NOT NULL        -- 和室 / 洋室 / 和洋室
+capacity     INTEGER NOT NULL     -- 最大宿泊人数
+size         REAL                 -- 部屋の広さ（㎡）
+base_price   INTEGER NOT NULL     -- 1泊基本料金（1名あたり・円）
+description  TEXT
+amenities    TEXT                 -- JSON配列で保存
+images       TEXT                 -- JSON配列で保存（画像URLリスト）
+is_available INTEGER DEFAULT 1   -- 公開フラグ（0/1）
 ```
-- id          INTEGER PRIMARY KEY AUTOINCREMENT
-- name        TEXT NOT NULL        -- 例：「松の間」「竹の間」
-- type        TEXT NOT NULL        -- 和室 / 洋室 / 和洋室
-- capacity    INTEGER NOT NULL     -- 最大宿泊人数
-- size        REAL                 -- 部屋の広さ（㎡）
-- base_price  INTEGER NOT NULL     -- 1泊基本料金（1名あたり・円）
-- description TEXT
-- amenities   TEXT                 -- JSON配列で保存
-- images      TEXT                 -- JSON配列で保存（画像URLリスト）
-- is_available INTEGER DEFAULT 1  -- 公開フラグ（0/1）
-```
+
+**シードデータ（6室）**
+
+| 名前 | タイプ | 定員 | 基本料金/名 |
+|---|---|---|---|
+| 松の間 | 和室 | 4名 | ¥15,000 |
+| 竹の間 | 和室 | 2名 | ¥12,000 |
+| 梅の間 | 和室 | 6名 | ¥14,000 |
+| 桜の間 | 和洋室 | 3名 | ¥18,000 |
+| 紅葉の間 | 和室 | 4名 | ¥16,000 |
+| 雪の間 | 洋室 | 2名 | ¥13,000 |
 
 ### 4.2 プラン (plans テーブル)
+```sql
+id             INTEGER PRIMARY KEY AUTOINCREMENT
+name           TEXT NOT NULL
+description    TEXT
+meal_type      TEXT             -- 朝食のみ / 2食付き / 素泊まり
+price_modifier INTEGER DEFAULT 0 -- 基本料金への加算額（円/名/泊）
+min_nights     INTEGER DEFAULT 1
+available_from TEXT             -- YYYY-MM-DD
+available_to   TEXT             -- YYYY-MM-DD
+images         TEXT             -- JSON配列で保存
 ```
-- id               INTEGER PRIMARY KEY AUTOINCREMENT
-- name             TEXT NOT NULL    -- 例：「スタンダード夕食付きプラン」
-- description      TEXT
-- meal_type        TEXT             -- 朝食のみ / 夕食付き / 2食付き / 素泊まり
-- price_modifier   INTEGER DEFAULT 0 -- 基本料金への加算額（円）
-- min_nights       INTEGER DEFAULT 1
-- available_from   TEXT             -- 販売開始日（YYYY-MM-DD）
-- available_to     TEXT             -- 販売終了日（YYYY-MM-DD）
-- images           TEXT             -- JSON配列で保存
-```
+
+**シードデータ（5プラン）**
+
+| プラン名 | 食事 | 加算額/名 | 最低泊数 |
+|---|---|---|---|
+| スタンダード 2食付きプラン | 2食付き | ¥5,000 | 1泊 |
+| 朝食付きプラン | 朝食のみ | ¥2,000 | 1泊 |
+| 素泊まりプラン | 素泊まり | ¥0 | 1泊 |
+| 【特別】露天風呂付き客室 × 豪華会席プラン | 2食付き | ¥10,000 | 1泊 |
+| 【連泊割】2泊以上でお得プラン | 2食付き | ¥3,000 | 2泊 |
 
 ### 4.3 予約 (reservations テーブル)
-```
-- id            INTEGER PRIMARY KEY AUTOINCREMENT
-- reservation_no TEXT UNIQUE NOT NULL  -- 予約番号（例：YK-20260403-0001）
-- room_id       INTEGER REFERENCES rooms(id)
-- plan_id       INTEGER REFERENCES plans(id)
-- check_in      TEXT NOT NULL          -- YYYY-MM-DD
-- check_out     TEXT NOT NULL          -- YYYY-MM-DD
-- nights        INTEGER NOT NULL
-- guest_count   INTEGER NOT NULL
-- total_price   INTEGER NOT NULL
-- guest_name    TEXT NOT NULL
-- guest_email   TEXT NOT NULL
-- guest_phone   TEXT NOT NULL
-- requests      TEXT                   -- 特別リクエスト
-- created_at    TEXT DEFAULT (datetime('now'))
-- status        TEXT DEFAULT 'confirmed'  -- confirmed / cancelled
+```sql
+id             INTEGER PRIMARY KEY AUTOINCREMENT
+reservation_no TEXT UNIQUE NOT NULL  -- 予約番号（例：YK-20260403-1234）
+room_id        INTEGER REFERENCES rooms(id)
+plan_id        INTEGER REFERENCES plans(id)
+check_in       TEXT NOT NULL          -- YYYY-MM-DD
+check_out      TEXT NOT NULL          -- YYYY-MM-DD
+nights         INTEGER NOT NULL
+guest_count    INTEGER NOT NULL
+total_price    INTEGER NOT NULL
+guest_name     TEXT NOT NULL
+guest_email    TEXT NOT NULL
+guest_phone    TEXT NOT NULL
+requests       TEXT                   -- 特別リクエスト（任意）
+created_at     TEXT DEFAULT (datetime('now'))
+status         TEXT DEFAULT 'confirmed'  -- confirmed / cancelled
 ```
 
+> **予約番号フォーマット**: `YK-YYYYMMDD-{4桁乱数}` 例: `YK-20260403-5823`
+
 ### 4.4 お知らせ (news テーブル)
-```
-- id           INTEGER PRIMARY KEY AUTOINCREMENT
-- title        TEXT NOT NULL
-- content      TEXT NOT NULL
-- published_at TEXT NOT NULL   -- YYYY-MM-DD
-- category     TEXT            -- お知らせ / イベント / 季節情報
+```sql
+id           INTEGER PRIMARY KEY AUTOINCREMENT
+title        TEXT NOT NULL
+content      TEXT NOT NULL
+published_at TEXT NOT NULL   -- YYYY-MM-DD
+category     TEXT            -- お知らせ / イベント / 季節情報
 ```
 
 ---
@@ -138,10 +162,10 @@
   - 英数字: Cormorant Garamond
 
 ### 5.2 UIコンポーネント方針
-- トップページ: フルスクリーンのヒーロー画像スライダー
-- 客室カード: 画像・名前・料金・設備アイコンを表示
-- 予約フォーム: ステップ式UI（Step 1: 日程選択 → Step 2: 客室選択 → Step 3: 個人情報）
-- カレンダー: 日付ピッカーで空室状況を視覚的に表示
+- トップページ: フルスクリーンのヒーロー画像スライダー（Unsplash実画像）
+- 客室カード: Unsplash実画像・名前・料金・設備アイコンを表示
+- 予約フォーム: 4ステップ式UI（Step 1〜4 を単一URL `/reserve` で管理）
+- アクセスページ: OpenStreetMap埋め込み（Googleマップ不使用）
 
 ### 5.3 レスポンシブ対応
 - ブレークポイント: SP（〜768px）/ Tablet（769px〜1024px）/ PC（1025px〜）
@@ -149,7 +173,7 @@
 
 ---
 
-## 6. 技術スタック（確定）
+## 6. 技術スタック（確定・実装済み）
 
 ### 6.1 全体アーキテクチャ
 
@@ -163,110 +187,138 @@
                                                          ▼
                                                 ┌──────────────────┐
                                                 │  SQLite          │
-                                                │  (ローカルファイル) │
+                                                │  (database.sqlite) │
                                                 └──────────────────┘
 ```
 
 ### 6.2 採用技術一覧
 
-| レイヤー | 技術 | バージョン | 理由 |
-|---|---|---|---|
-| フロントエンド | React | 18.x | コンポーネント指向UI |
-| ビルドツール | Vite | 5.x | 高速なHMR・シンプルな設定 |
-| スタイリング | Tailwind CSS | 3.x | ユーティリティ・高速UI構築 |
-| ルーティング | React Router | v6 | SPA画面遷移 |
-| フォーム | React Hook Form | 7.x | バリデーション付きフォーム |
-| 日付操作 | date-fns | 3.x | 日付計算・フォーマット |
-| バックエンド | Express | 4.x | Node.js Webフレームワーク |
-| DB | SQLite | - | ローカルファイルDB・設定不要 |
-| DBドライバー | better-sqlite3 | - | 同期API・高速・シンプル |
+| レイヤー | 技術 | 備考 |
+|---|---|---|
+| フロントエンド | React 18 + Vite 5 | |
+| スタイリング | Tailwind CSS 3 | |
+| ルーティング | React Router v6 | |
+| フォーム | React Hook Form | Zodなし・独自バリデーション |
+| 日付操作 | date-fns | |
+| バックエンド | Express 4 + Node.js 22 | |
+| DB | SQLite（better-sqlite3） | WALモード・外部キー有効 |
+| メール送信 | nodemailer（Gmail SMTP） | 環境変数で設定 |
+| 地図 | OpenStreetMap（iframeで埋め込み） | |
+| 画像 | Unsplash（テーマ別実画像） | |
 
-### 6.3 フォルダ構成（予定）
+### 6.3 実際のフォルダ構成
 
 ```
 firstClaudeProject/
+├── CLAUDE.md
 ├── requirements.md
-├── frontend/               # React + Vite
-│   ├── src/
-│   │   ├── components/     # 共通コンポーネント
-│   │   ├── pages/          # 各ページコンポーネント
-│   │   ├── hooks/          # カスタムフック
-│   │   └── utils/          # ユーティリティ関数
-│   ├── index.html
-│   ├── vite.config.js
-│   └── package.json
-└── backend/                # Express + SQLite
-    ├── src/
-    │   ├── routes/         # APIルート定義
-    │   ├── db/             # DB初期化・クエリ
-    │   └── index.js        # エントリポイント
-    ├── database.sqlite     # SQLiteファイル
-    └── package.json
+├── session-requirements.md
+├── session-dev.md
+├── frontend/
+│   └── src/
+│       ├── components/
+│       │   ├── Header.jsx
+│       │   ├── Footer.jsx
+│       │   └── Layout.jsx
+│       ├── pages/
+│       │   ├── TopPage.jsx
+│       │   ├── RoomsPage.jsx
+│       │   ├── RoomDetailPage.jsx
+│       │   ├── PlansPage.jsx
+│       │   ├── ReservePage.jsx       # 4ステップ統合
+│       │   ├── ReserveCompletePage.jsx
+│       │   ├── FacilitiesPage.jsx
+│       │   ├── AccessPage.jsx
+│       │   ├── NewsPage.jsx
+│       │   └── ContactPage.jsx
+│       └── utils/
+│           └── api.js
+└── backend/
+    └── src/
+        ├── db/
+        │   └── init.js              # スキーマ定義・シードデータ
+        ├── routes/
+        │   ├── rooms.js
+        │   ├── plans.js
+        │   ├── reservations.js
+        │   ├── news.js
+        │   └── contact.js
+        ├── email.js                 # nodemailerメール通知
+        └── index.js
+```
+
+### 6.4 環境変数（backend/.env）
+```
+SMTP_USER=   # Gmail アドレス
+SMTP_PASS=   # Googleアプリパスワード
+NOTIFY_TO=   # 通知先メールアドレス
 ```
 
 ---
 
-## 7. API設計（主要エンドポイント）
+## 7. API設計（実装済みエンドポイント）
 
 | メソッド | エンドポイント | 説明 |
 |---|---|---|
-| GET | `/api/rooms` | 客室一覧取得 |
+| GET | `/api/health` | ヘルスチェック |
+| GET | `/api/rooms` | 客室一覧取得（is_available=1のみ）|
+| GET | `/api/rooms/availability` | 空室検索（check_in/check_out/guest_count）|
 | GET | `/api/rooms/:id` | 客室詳細取得 |
-| GET | `/api/rooms/availability` | 空室検索 |
 | GET | `/api/plans` | プラン一覧取得 |
-| GET | `/api/plans/:id` | プラン詳細取得 |
-| POST | `/api/reservations` | 予約作成 |
-| GET | `/api/reservations/:no` | 予約確認 |
+| POST | `/api/reservations` | 予約作成（二重予約チェックあり）|
+| GET | `/api/reservations/:no` | 予約番号で予約確認 |
 | GET | `/api/news` | お知らせ一覧取得 |
-| POST | `/api/contact` | お問い合わせ送信 |
+| POST | `/api/contact` | お問い合わせ送信（メール通知）|
 
 ---
 
-## 8. デモ用に省略する機能
+## 8. 予約フロー詳細（4ステップ統合）
 
-| 機能 | 理由 |
+| ステップ | 内容 |
 |---|---|
-| 実決済処理（Stripe等） | デモのため不要 |
-| ユーザー認証・会員登録 | スコープ外 |
-| メール送信（実送信） | 画面表示のみで代替 |
-| 管理画面 | 将来拡張として扱う |
-| 多言語対応 | 日本語のみ |
+| Step 1: 日程・人数 | チェックイン日・チェックアウト日・人数入力 → 空室API呼び出し |
+| Step 2: 客室・プラン | 空室客室一覧から選択・プラン選択・料金リアルタイム計算 |
+| Step 3: お客様情報 | 氏名・メール・電話番号（日本形式バリデーション）・特別リクエスト |
+| Step 4: 予約確認 | 全入力内容の確認 → 「予約を確定する」ボタン → API送信 |
+| 完了画面 | 予約番号・予約内容サマリ（別URL: `/reserve/complete`）|
+
+**電話番号バリデーション対応形式**:
+- 携帯: `070/080/090-XXXX-XXXX`
+- IP電話: `050-XXXX-XXXX`
+- フリーダイヤル: `0120-XXX-XXX` / `0800-XXX-XXXX`
+- 固定電話: `0X-XXXX-XXXX` / `0XX-XXX-XXXX` 等
 
 ---
 
-## 9. ページ別コンテンツ詳細
+## 9. デモ用の扱い
 
-### 9.1 トップページ
-- ヒーロースライダー（旅館の雰囲気写真 3〜5枚）
-- キャッチコピー・旅館コンセプト文
-- 「ご予約」への導線ボタン
-- おすすめ客室（2〜3室のカード表示）
-- 季節のプランピックアップ
-- 温泉・食事・施設のハイライトセクション
-- お知らせ（最新3件）
-- アクセス概要
-- フッター（ナビ・連絡先・SNSリンク）
-
-### 9.2 予約フォーム（3ステップ）
-- **Step 1**: チェックイン日・チェックアウト日・人数入力 → 空室検索
-- **Step 2**: 空室客室一覧からの選択・プラン選択・料金確認
-- **Step 3**: 氏名・電話番号・メールアドレス・特別リクエスト入力
-- **確認画面**: 全入力内容の表示・修正リンク
-- **完了画面**: 予約番号・予約内容サマリ
+| 機能 | 当初方針 | 実際の実装 |
+|---|---|---|
+| メール送信 | 画面表示のみ | **実送信に変更**（nodemailer/Gmail SMTP）|
+| 地図 | Google Maps埋め込み | **OpenStreetMapに変更**（APIキー不要）|
+| 画像 | Unsplash利用 | ✅ Unsplash実画像を使用 |
+| 実決済処理 | スコープ外 | ✅ 省略（変更なし）|
+| 認証・会員登録 | スコープ外 | ✅ 省略（変更なし）|
+| 管理画面 | 将来拡張 | ✅ 省略（変更なし）|
 
 ---
 
-## 10. 開発優先順位
+## 10. 開発完了状況
 
-| 優先度 | タスク |
+| タスク | 状況 |
 |---|---|
-| 高 | プロジェクト初期構築（frontend/backend分離構成） |
-| 高 | DB初期化・シードデータ投入 |
-| 高 | 共通レイアウト（ヘッダー・フッター） |
-| 高 | トップページ実装 |
-| 高 | 客室一覧・客室詳細ページ |
-| 高 | 予約フォーム（3ステップ） |
-| 中 | プラン一覧ページ |
-| 中 | 施設案内・アクセスページ |
-| 低 | お知らせ一覧 |
-| 低 | お問い合わせフォーム |
+| プロジェクト初期構築 | ✅ 完了 |
+| DB初期化・シードデータ投入 | ✅ 完了 |
+| 共通レイアウト（ヘッダー・フッター） | ✅ 完了 |
+| トップページ（ヒーロースライダー・各セクション） | ✅ 完了 |
+| 客室一覧・客室詳細 | ✅ 完了 |
+| プラン一覧 | ✅ 完了 |
+| 予約フォーム（4ステップ） | ✅ 完了 |
+| 予約完了ページ | ✅ 完了 |
+| 施設案内ページ | ✅ 完了 |
+| アクセスページ（OpenStreetMap） | ✅ 完了 |
+| お知らせ一覧 | ✅ 完了 |
+| お問い合わせフォーム | ✅ 完了 |
+| メール通知（予約・お問い合わせ） | ✅ 完了 |
+| Unsplash実画像の適用 | ✅ 完了 |
+| 電話番号バリデーション | ✅ 完了 |
