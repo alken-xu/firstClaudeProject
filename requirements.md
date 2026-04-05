@@ -1,7 +1,7 @@
 # 要件定義書 - デモ用旅館予約サイト
 
 **作成日**: 2026-04-03  
-**バージョン**: 1.2（実装状況反映）  
+**バージョン**: 1.3  
 **参考サイト**: https://hatagoya-maruichi.com/（旅籠屋丸一）
 
 ---
@@ -14,27 +14,25 @@
 ### 1.2 想定旅館設定
 - **旅館名**: 山の湯 花結（やまのゆ はなゆい）※デモ用架空旅館
 - **コンセプト**: 和の情緒を大切にした温泉旅館
-- **所在地**: 架空の温泉地（信州・山ノ湯温泉）
-- **規模**: 客室6室（実装済みシードデータ）
+- **所在地**: 信州・山ノ湯温泉（架空）
+- **規模**: 客室6室
 
 ---
 
 ## 2. ページ構成
 
-| ページ名 | URL | 実装状況 |
-|---|---|---|
-| トップページ | `/` | ✅ 実装済み |
-| 客室一覧 | `/rooms` | ✅ 実装済み |
-| 客室詳細 | `/rooms/:id` | ✅ 実装済み |
-| プラン一覧 | `/plans` | ✅ 実装済み |
-| 予約フォーム（4ステップ統合） | `/reserve` | ✅ 実装済み |
-| 予約完了 | `/reserve/complete` | ✅ 実装済み |
-| 温泉・施設案内 | `/facilities` | ✅ 実装済み |
-| アクセス | `/access` | ✅ 実装済み |
-| お知らせ | `/news` | ✅ 実装済み |
-| お問い合わせ | `/contact` | ✅ 実装済み |
-
-> **設計変更**: 当初の `/reserve/confirm`（別URL）は廃止。予約確認はStep 4として `/reserve` 内に統合。
+| ページ名 | URL |
+|---|---|
+| トップページ | `/` |
+| 客室一覧 | `/rooms` |
+| 客室詳細 | `/rooms/:id` |
+| プラン一覧 | `/plans` |
+| 予約フォーム（4ステップ統合） | `/reserve` |
+| 予約完了 | `/reserve/complete` |
+| 温泉・施設案内 | `/facilities` |
+| アクセス | `/access` |
+| お知らせ | `/news` |
+| お問い合わせ | `/contact` |
 
 ---
 
@@ -43,22 +41,22 @@
 ### 3.1 ユーザー向け機能
 
 #### 検索・閲覧
-- [x] チェックイン日・チェックアウト日・人数による空室検索
-- [x] 客室一覧の表示（Unsplash画像・料金・設備のサマリ）
-- [x] 客室詳細ページ（複数写真・設備リスト・料金表）
-- [x] プラン一覧・プラン詳細の表示
+- チェックイン日・チェックアウト日・人数による空室検索
+- 客室一覧（Unsplash画像・料金・設備のサマリ）
+- 客室詳細（複数写真・設備リスト・料金表）
+- プラン一覧・プラン詳細
 
 #### 予約フロー
-- [x] 予約フォーム入力（4ステップ：日程/客室/個人情報/確認）
-- [x] 二重予約チェック（同一客室・期間の重複検出）
-- [x] 日本の電話番号バリデーション（携帯・固定・IP電話・フリーダイヤル対応）
-- [x] 予約完了画面（予約番号の発行・予約内容サマリ）
-- [x] 予約作成時のメール通知（nodemailer / Gmail SMTP）
+- 予約フォーム（4ステップ：日程 / 客室・プラン / お客様情報 / 確認）
+- 二重予約チェック（同一客室・期間の重複検出）
+- 日本の電話番号バリデーション
+- 予約完了画面（予約番号の発行・予約内容サマリ）
+- 予約作成時のメール通知（nodemailer / Gmail SMTP）
 
 #### その他
-- [x] お問い合わせフォーム（メール通知付き）
-- [x] アクセスページ（OpenStreetMap埋め込み）
-- [x] レスポンシブ対応（SP/Tablet/PC）
+- お問い合わせフォーム（メール通知付き）
+- アクセスページ（OpenStreetMap埋め込み）
+- レスポンシブ対応（SP / Tablet / PC）
 
 ### 3.2 管理者向け機能（スコープ外・将来拡張）
 - 予約一覧の確認
@@ -119,7 +117,7 @@ images         TEXT             -- JSON配列で保存
 ### 4.3 予約 (reservations テーブル)
 ```sql
 id             INTEGER PRIMARY KEY AUTOINCREMENT
-reservation_no TEXT UNIQUE NOT NULL  -- 予約番号（例：YK-20260403-1234）
+reservation_no TEXT UNIQUE NOT NULL  -- YK-YYYYMMDD-{4桁乱数}（例: YK-20260403-5823）
 room_id        INTEGER REFERENCES rooms(id)
 plan_id        INTEGER REFERENCES plans(id)
 check_in       TEXT NOT NULL          -- YYYY-MM-DD
@@ -134,8 +132,6 @@ requests       TEXT                   -- 特別リクエスト（任意）
 created_at     TEXT DEFAULT (datetime('now'))
 status         TEXT DEFAULT 'confirmed'  -- confirmed / cancelled
 ```
-
-> **予約番号フォーマット**: `YK-YYYYMMDD-{4桁乱数}` 例: `YK-20260403-5823`
 
 ### 4.4 お知らせ (news テーブル)
 ```sql
@@ -161,11 +157,11 @@ category     TEXT            -- お知らせ / イベント / 季節情報
   - 日本語: Noto Serif JP（見出し）/ Noto Sans JP（本文）
   - 英数字: Cormorant Garamond
 
-### 5.2 UIコンポーネント方針
-- トップページ: フルスクリーンのヒーロー画像スライダー（Unsplash実画像）
+### 5.2 UIコンポーネント
+- トップページ: フルスクリーンのヒーロー画像スライダー（Unsplash実画像・5秒自動切替）
 - 客室カード: Unsplash実画像・名前・料金・設備アイコンを表示
-- 予約フォーム: 4ステップ式UI（Step 1〜4 を単一URL `/reserve` で管理）
-- アクセスページ: OpenStreetMap埋め込み（Googleマップ不使用）
+- 予約フォーム: 4ステップ式UI（単一URL `/reserve` で管理）
+- アクセスページ: OpenStreetMap（iframeで埋め込み）
 
 ### 5.3 レスポンシブ対応
 - ブレークポイント: SP（〜768px）/ Tablet（769px〜1024px）/ PC（1025px〜）
@@ -173,7 +169,7 @@ category     TEXT            -- お知らせ / イベント / 季節情報
 
 ---
 
-## 6. 技術スタック（確定・実装済み）
+## 6. 技術スタック
 
 ### 6.1 全体アーキテクチャ
 
@@ -198,15 +194,15 @@ category     TEXT            -- お知らせ / イベント / 季節情報
 | フロントエンド | React 18 + Vite 5 | |
 | スタイリング | Tailwind CSS 3 | |
 | ルーティング | React Router v6 | |
-| フォーム | React Hook Form | Zodなし・独自バリデーション |
+| フォーム | React Hook Form | 独自バリデーション |
 | 日付操作 | date-fns | |
 | バックエンド | Express 4 + Node.js 22 | |
 | DB | SQLite（better-sqlite3） | WALモード・外部キー有効 |
 | メール送信 | nodemailer（Gmail SMTP） | 環境変数で設定 |
-| 地図 | OpenStreetMap（iframeで埋め込み） | |
+| 地図 | OpenStreetMap（iframeで埋め込み） | APIキー不要 |
 | 画像 | Unsplash（テーマ別実画像） | |
 
-### 6.3 実際のフォルダ構成
+### 6.3 フォルダ構成
 
 ```
 firstClaudeProject/
@@ -225,7 +221,7 @@ firstClaudeProject/
 │       │   ├── RoomsPage.jsx
 │       │   ├── RoomDetailPage.jsx
 │       │   ├── PlansPage.jsx
-│       │   ├── ReservePage.jsx       # 4ステップ統合
+│       │   ├── ReservePage.jsx
 │       │   ├── ReserveCompletePage.jsx
 │       │   ├── FacilitiesPage.jsx
 │       │   ├── AccessPage.jsx
@@ -236,14 +232,14 @@ firstClaudeProject/
 └── backend/
     └── src/
         ├── db/
-        │   └── init.js              # スキーマ定義・シードデータ
+        │   └── init.js
         ├── routes/
         │   ├── rooms.js
         │   ├── plans.js
         │   ├── reservations.js
         │   ├── news.js
         │   └── contact.js
-        ├── email.js                 # nodemailerメール通知
+        ├── email.js
         └── index.js
 ```
 
@@ -256,13 +252,13 @@ NOTIFY_TO=   # 通知先メールアドレス
 
 ---
 
-## 7. API設計（実装済みエンドポイント）
+## 7. API設計
 
 | メソッド | エンドポイント | 説明 |
 |---|---|---|
 | GET | `/api/health` | ヘルスチェック |
 | GET | `/api/rooms` | 客室一覧取得（is_available=1のみ）|
-| GET | `/api/rooms/availability` | 空室検索（check_in/check_out/guest_count）|
+| GET | `/api/rooms/availability` | 空室検索（check_in / check_out / guest_count）|
 | GET | `/api/rooms/:id` | 客室詳細取得 |
 | GET | `/api/plans` | プラン一覧取得 |
 | POST | `/api/reservations` | 予約作成（二重予約チェックあり）|
@@ -272,15 +268,15 @@ NOTIFY_TO=   # 通知先メールアドレス
 
 ---
 
-## 8. 予約フロー詳細（4ステップ統合）
+## 8. 予約フロー詳細
 
 | ステップ | 内容 |
 |---|---|
 | Step 1: 日程・人数 | チェックイン日・チェックアウト日・人数入力 → 空室API呼び出し |
 | Step 2: 客室・プラン | 空室客室一覧から選択・プラン選択・料金リアルタイム計算 |
-| Step 3: お客様情報 | 氏名・メール・電話番号（日本形式バリデーション）・特別リクエスト |
+| Step 3: お客様情報 | 氏名・メール・電話番号・特別リクエスト |
 | Step 4: 予約確認 | 全入力内容の確認 → 「予約を確定する」ボタン → API送信 |
-| 完了画面 | 予約番号・予約内容サマリ（別URL: `/reserve/complete`）|
+| 完了画面 | 予約番号・予約内容サマリ（`/reserve/complete`）|
 
 **電話番号バリデーション対応形式**:
 - 携帯: `070/080/090-XXXX-XXXX`
@@ -290,35 +286,11 @@ NOTIFY_TO=   # 通知先メールアドレス
 
 ---
 
-## 9. デモ用の扱い
+## 9. スコープ外（将来拡張）
 
-| 機能 | 当初方針 | 実際の実装 |
-|---|---|---|
-| メール送信 | 画面表示のみ | **実送信に変更**（nodemailer/Gmail SMTP）|
-| 地図 | Google Maps埋め込み | **OpenStreetMapに変更**（APIキー不要）|
-| 画像 | Unsplash利用 | ✅ Unsplash実画像を使用 |
-| 実決済処理 | スコープ外 | ✅ 省略（変更なし）|
-| 認証・会員登録 | スコープ外 | ✅ 省略（変更なし）|
-| 管理画面 | 将来拡張 | ✅ 省略（変更なし）|
-
----
-
-## 10. 開発完了状況
-
-| タスク | 状況 |
-|---|---|
-| プロジェクト初期構築 | ✅ 完了 |
-| DB初期化・シードデータ投入 | ✅ 完了 |
-| 共通レイアウト（ヘッダー・フッター） | ✅ 完了 |
-| トップページ（ヒーロースライダー・各セクション） | ✅ 完了 |
-| 客室一覧・客室詳細 | ✅ 完了 |
-| プラン一覧 | ✅ 完了 |
-| 予約フォーム（4ステップ） | ✅ 完了 |
-| 予約完了ページ | ✅ 完了 |
-| 施設案内ページ | ✅ 完了 |
-| アクセスページ（OpenStreetMap） | ✅ 完了 |
-| お知らせ一覧 | ✅ 完了 |
-| お問い合わせフォーム | ✅ 完了 |
-| メール通知（予約・お問い合わせ） | ✅ 完了 |
-| Unsplash実画像の適用 | ✅ 完了 |
-| 電話番号バリデーション | ✅ 完了 |
+| 機能 |
+|---|
+| 実決済処理（Stripe等） |
+| ユーザー認証・会員登録 |
+| 管理画面 |
+| 多言語対応 |
