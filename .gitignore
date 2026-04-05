@@ -4,3 +4,10 @@ dist/
 *.sqlite-shm
 *.sqlite-wal
 .env
+
+# Claude Code
+.claude/
+
+# テスト生成物
+tests/test-results.xlsx
+tests/screenshots/
