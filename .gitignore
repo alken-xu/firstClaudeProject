@@ -1,8 +1,10 @@
 node_modules/
 dist/
-*.sqlite
 *.sqlite-shm
 *.sqlite-wal
+# 本番DBファイルは追跡しない（backend/database.sqliteは例外として追跡）
+backend/database.sqlite-shm
+backend/database.sqlite-wal
 .env
 
 # Claude Code
