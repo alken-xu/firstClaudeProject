@@ -81,11 +81,44 @@ npm install
 
 ```env
 SMTP_USER=your-gmail@gmail.com
-SMTP_PASS=your-app-password        # Googleアプリパスワード
-NOTIFY_TO=owner-notify@example.com # 通知先メールアドレス
+SMTP_PASS=your-app-password        # Googleアプリパスワード（通常のGmailパスワードではない）
+NOTIFY_TO=owner-notify@example.com # 予約・問い合わせ通知の送信先
 ```
 
 > メール通知が不要な場合は `.env` を空のまま起動しても動作します（メール送信エラーはログに出力されますがアプリは動きます）。
+
+#### Googleアプリパスワードの取得手順
+
+Gmail の通常パスワードは SMTP 認証に使えません。**アプリパスワード**（16桁）を別途発行する必要があります。
+
+**前提条件：Googleアカウントの2段階認証が有効であること**  
+（アプリパスワードは2段階認証が ON のアカウントにのみ発行できます）
+
+**手順：**
+
+1. 以下のURLにアクセスします（Googleアカウントへのログインが必要）  
+   👉 https://myaccount.google.com/apppasswords
+
+2. 「アプリ名」の入力欄に任意の名前（例：`旅館予約サイト`）を入力して **「作成」** をクリック
+
+3. 表示された **16桁のパスワード**（スペース区切り4×4）をコピーします  
+   ⚠️ このダイアログを閉じると二度と表示されません。必ずコピーしてください。
+
+4. `backend/.env` の `SMTP_PASS` にスペースなしで貼り付けます：
+   ```env
+   SMTP_USER=your-gmail@gmail.com
+   SMTP_PASS=abcdabcdabcdabcd       # 16桁をそのまま貼り付け（スペース不要）
+   NOTIFY_TO=owner-notify@example.com
+   ```
+
+**2段階認証が未設定の場合：**
+
+1. https://myaccount.google.com/security にアクセス
+2. 「2段階認証プロセス」をクリックして有効化
+3. 有効化完了後、上記のアプリパスワード発行手順へ進む
+
+> **注意**：送信元（`SMTP_USER`）は実際に存在する Gmail アドレスを指定してください。  
+> お問い合わせフォームでユーザーが入力した「返信先」メールアドレスは `Reply-To` ヘッダーに設定されるため、受信したメールに返信するだけでユーザーへ送信できます。
 
 ### 3. フロントエンドのセットアップ
 
