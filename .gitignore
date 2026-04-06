@@ -10,6 +10,6 @@ backend/database.sqlite-wal
 # Claude Code
 .claude/
 
-# テスト生成物
-tests/test-results.xlsx
-tests/screenshots/
+# テスト生成物（追跡する場合はこの行をコメントアウト）
+# tests/test-results.xlsx
+# tests/screenshots/
