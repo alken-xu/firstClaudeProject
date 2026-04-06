@@ -423,6 +423,140 @@ const TEST_CASES = [
       }
     },
   },
+
+  // ── 二重予約チェックテスト ────────────────────────────────────────────────
+  {
+    id: 'TC-017',
+    name: '二重予約チェック — API 409エラー確認',
+    category: '二重予約チェック',
+    precondition: 'バックエンドサーバー起動済み（localhost:3001）',
+    steps: [
+      '① POST /api/reservations で 雪の間(room_id=6) / 2026-08-20〜21 / 1名 の予約を作成',
+      '② 同一の客室・日程で再度 POST',
+      '③ 2回目のレスポンスが HTTP 409 かつ "指定の日程はすでに予約済みです" を返すことを確認',
+      '④ /reserve 画面で同日程を検索し、雪の間が除外されていることをスクリーンショットで記録',
+    ].join('\n'),
+    expected: '1回目: HTTP 201 Created / 2回目: HTTP 409 Conflict、error:"指定の日程はすでに予約済みです"',
+    async execute(page) {
+      const API = 'http://localhost:3001';
+      const payload = {
+        room_id: 6,
+        plan_id: null,
+        check_in: '2026-08-20',
+        check_out: '2026-08-21',
+        nights: 1,
+        guest_count: 1,
+        total_price: 13000,
+        guest_name: 'テスト 太郎',
+        guest_email: 'test-double1@example.com',
+        guest_phone: '090-0000-0001',
+        requests: '二重予約テストTC-017',
+      };
+
+      // ── 1回目: 正常登録 ────────────────────────────────────────────────────
+      const res1 = await fetch(`${API}/api/reservations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res1.status !== 201) {
+        const b = await res1.json().catch(() => ({}));
+        throw new Error(`1回目の予約作成が失敗 (HTTP ${res1.status}): ${b.error || ''}`);
+      }
+
+      // ── 2回目: 重複 POST → 409 を期待 ────────────────────────────────────
+      const res2 = await fetch(`${API}/api/reservations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res2.status !== 409) {
+        throw new Error(`2回目で HTTP 409 が返りませんでした (HTTP ${res2.status})`);
+      }
+      const body2 = await res2.json();
+      if (!body2.error || !body2.error.includes('予約済み')) {
+        throw new Error(`エラーメッセージが想定外: "${body2.error}"`);
+      }
+
+      // ── UI: 同日程を検索し雪の間が除外されていることをスクリーンショット ──
+      await page.goto(`${BASE_URL}/reserve`);
+      await page.waitForLoadState('networkidle', { timeout: 15000 });
+      await page.locator('input[name="check_in"]').fill('2026-08-20');
+      await page.locator('input[name="check_out"]').fill('2026-08-21');
+      await page.locator('select[name="guest_count"]').selectOption('1');
+      await page.locator('button[type="submit"]').click();
+      await page.waitForTimeout(3000);
+
+      // 空室リストに「雪の間」が含まれていないことを確認
+      const resultText = await page.locator('body').textContent();
+      if (resultText.includes('雪の間') && resultText.includes('空室状況')) {
+        throw new Error('雪の間が空室リストに表示されています（除外されるべき）');
+      }
+    },
+  },
+  {
+    id: 'TC-018',
+    name: '二重予約チェック — 予約済み客室が空室検索から除外される確認',
+    category: '二重予約チェック',
+    precondition: 'フロント/バックエンドサーバー起動済み',
+    steps: [
+      '① API で 雪の間(room_id=6) / 2026-08-22〜23 / 1名 の予約を事前登録',
+      '② /reserve へアクセスし、同じ日程（2026-08-22〜23）・1名で空室検索を実行',
+      '③ 検索結果に「雪の間」が表示されないことを確認',
+      '④ 他の空室客室は引き続き表示されることを確認',
+    ].join('\n'),
+    expected: '空室リストに「雪の間」が含まれない。他の未予約客室は正常に表示される',
+    async execute(page) {
+      const API = 'http://localhost:3001';
+
+      // ── 事前登録: 雪の間を2026-08-22〜23 で予約 ──────────────────────────
+      const preRes = await fetch(`${API}/api/reservations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          room_id: 6,
+          plan_id: null,
+          check_in: '2026-08-22',
+          check_out: '2026-08-23',
+          nights: 1,
+          guest_count: 1,
+          total_price: 13000,
+          guest_name: 'テスト 次郎',
+          guest_email: 'test-double2@example.com',
+          guest_phone: '090-0000-0002',
+          requests: '二重予約テストTC-018',
+        }),
+      });
+      if (preRes.status !== 201) {
+        const b = await preRes.json().catch(() => ({}));
+        throw new Error(`事前予約作成が失敗 (HTTP ${preRes.status}): ${b.error || ''}`);
+      }
+
+      // ── UI: 同日程で空室検索 ──────────────────────────────────────────────
+      await page.goto(`${BASE_URL}/reserve`);
+      await page.waitForLoadState('networkidle', { timeout: 15000 });
+      await page.locator('input[name="check_in"]').fill('2026-08-22');
+      await page.locator('input[name="check_out"]').fill('2026-08-23');
+      await page.locator('select[name="guest_count"]').selectOption('1');
+      await page.locator('button[type="submit"]').click();
+      await page.waitForTimeout(3000);
+
+      // 空室状況セクションが表示されることを確認
+      const bodyText = await page.locator('body').textContent();
+      if (!bodyText.includes('空室状況') && !bodyText.includes('空室がありません')) {
+        throw new Error('空室検索結果が表示されません');
+      }
+
+      // 雪の間が除外されていることを確認
+      // （空室ありの場合は他室が表示されるが雪の間は含まれない）
+      const resultSection = page.locator('body');
+      const fullText = await resultSection.textContent();
+      if (fullText.includes('雪の間') &&
+          (fullText.includes('空室状況') || fullText.includes('¥13,000'))) {
+        throw new Error('予約済みの「雪の間」が空室リストに表示されています');
+      }
+    },
+  },
 ];
 
 // ─── Excel ヘルパー ─────────────────────────────────────────────────────────
